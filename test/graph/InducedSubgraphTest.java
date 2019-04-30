@@ -11,5 +11,7 @@ class InducedSubgraphTest {
 
     }
     @Test
-    void testCreation
+    void testCreation() {
+
+    }
 }

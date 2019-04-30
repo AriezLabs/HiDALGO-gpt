@@ -15,14 +15,15 @@ public class GraphWriter {
     }
 
     /**
-     * write g to given path.
+     * write g to given path, appending file extension according to set format
      * @param override override file if it already exists (if false, appends date to filename)
      */
     public void toFile(Graph g, String path, boolean override) throws IOException {
-        File destination = new File(path);
+        checkFormatSet();
+        File destination = new File(path + format.getExtension());
         if(!override && destination.exists()) {
             DateFormat df = new SimpleDateFormat("dd.MM-HH:mm:ss");
-            destination = new File(path + "-" + df.format(new Date()));
+            destination = new File(path + "-" + df.format(new Date()) + format.getExtension());
         }
 
         try(BufferedWriter bw = new BufferedWriter(new FileWriter(destination))) {
@@ -35,19 +36,40 @@ public class GraphWriter {
         toFile(g, path, false);
     }
 
+    public String toString(Graph g) throws IOException {
+        checkFormatSet();
+        StringWriter sw = new StringWriter();
+        format.write(g, sw);
+        return sw.toString();
+    }
+
+    public void checkFormatSet() {
+        if (format == null)
+            throw new IllegalStateException("cannot read graph: input format is unset");
+    }
+
     private interface OutputFormat {
         /**
          * write graph g with specific output format to w
          */
         void write(Graph g, Writer w) throws IOException;
+
+        /** name of format (for filename extension) */
+        String getExtension();
     }
 
     public static class Metis implements OutputFormat {
         @Override
         public void write(Graph g, Writer w) throws IOException {
+            // peculiarity: undirected edges only count as one, Graph interface will count one per direction
+            int e = g.getEdgeCount();
+            if(e % 2 != 0)
+                System.err.println("warning: uneven edge count in metis graph " + g.getName());
+
             // header
-            StringBuilder line = new StringBuilder().append(g.getNodeCount()).append(" ").append(g.getEdgeCount());
+            StringBuilder line = new StringBuilder().append(g.getNodeCount()).append(" ").append(e / 2);
             w.write(line.toString());
+            w.write("\n");
 
             // write adjacency lists linewise
             for (int i = 0; i < g.getNodeCount(); i++) {
@@ -55,7 +77,13 @@ public class GraphWriter {
                 for(int neighbor : g.getNeighbors(i))
                     line.append(neighbor).append(" ");
                 w.write(line.deleteCharAt(line.length() - 1).toString());
+                w.write("\n");
             }
+        }
+
+        @Override
+        public String getExtension() {
+            return ".metis";
         }
     }
 }

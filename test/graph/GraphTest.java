@@ -1,8 +1,10 @@
 package graph;
 
+import io.GraphReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -49,5 +51,16 @@ class GraphTest {
             assertThrows(IllegalArgumentException.class, () -> g.addEdge(-1, 0));
             assertThrows(IllegalArgumentException.class, () -> g.addEdge(0, 99));
         }
+    }
+
+    @Test
+    void testEv() throws IOException {
+        GraphReader gr = new GraphReader();
+        gr.setInputFormat(new GraphReader.Metis());
+        gr.setReturnFormat(new GraphReader.Matrix());
+        Graph g = gr.fromFile("resources/medium.metis");
+        assertEquals(0.5781, g.getEigenvalue(), 0.0001);
+        g = gr.fromFile("resources/medium2.metis");
+        assertEquals(0.4817, g.getEigenvalue(), 0.0001);
     }
 }

@@ -7,6 +7,7 @@ import graph.InducedSubgraph;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class GraphReader {
     private inputFormat inputFormat;
@@ -20,21 +21,54 @@ public class GraphReader {
         this.returnFormat = format;
     }
 
-    public Graph fromFile(String path) throws IOException, FileFormatException {
+    /**
+     * aggregate operation: attempt to read all files in directory
+     * @param path to directory to read graphs from
+     * @return array of graphs in directory
+     */
+    public Graph[] fromDirectory(String path) throws IOException {
+        return fromDirectory(new File(path));
+    }
+
+    public Graph[] fromDirectory(File directory) throws IOException {
         checkFormatSet();
-        try {
-            return inputFormat.read(new StreamTokenizer(new BufferedReader(new FileReader(new File(path)))), returnFormat);
+        if(!directory.isDirectory())
+            throw new IllegalArgumentException(directory.getName() + " is not a directory");
+        File[] files = (File[]) Arrays.stream(directory.listFiles()).filter(File::isFile).toArray();
+        Graph[] graphs = new Graph[files.length];
+        for (int i = 0; i < files.length; i++) {
+            graphs[i] = fromFile(files[i]);
+        }
+        return graphs;
+    }
+
+    /**
+     * @param path to file to read graph from
+     * @return graph named after file (without filename extension)
+     */
+    public Graph fromFile(String path) throws IOException{
+        return fromFile(new File(path));
+    }
+
+    /**
+     * @param f file to read graph from
+     * @return graph named after f (without filename extension)
+     */
+    public Graph fromFile(File f) throws IOException {
+        checkFormatSet();
+        try (BufferedReader br = new BufferedReader(new FileReader(f))){
+            Graph g = inputFormat.read(new StreamTokenizer(br), returnFormat);
+            g.setName(f.getName().split("\\.")[0]);
+            return g;
         } catch (FileFormatException e) {
-            throw new FileFormatException(e.getMessage() + " in file " + path);
+            throw new FileFormatException(e.getMessage() + " in file " + f.getName());
         }
     }
 
-    public Graph fromString(String s) throws FileFormatException {
+    public Graph fromString(String s) throws IOException {
         checkFormatSet();
         try {
             return inputFormat.read(new StreamTokenizer(new StringReader(s)), returnFormat);
-        } catch (IOException e) {
-            throw new RuntimeException("IOException thrown while reading graph from string? [disguised as runtimeexception to avoid exception in method signature]");
         } catch (FileFormatException e) {
             throw new FileFormatException(e.getMessage() + " in string " + s);
         }
@@ -65,11 +99,12 @@ public class GraphReader {
          */
         String getEBNF();
 
+        /** convenience method for reading next number and rounding to int */
         default int readInt(StreamTokenizer in) throws IOException {
-            if(in.nextToken() == StreamTokenizer.TT_NUMBER)
+            if(in.ttype == StreamTokenizer.TT_NUMBER)
                 return (int) Math.round(in.nval);
             else
-                throw new FileFormatException("unknown token " + in.sval);
+                throw new FileFormatException("unknown token " + in.sval + " of type " + in.ttype);
         }
     }
 
@@ -78,9 +113,11 @@ public class GraphReader {
         public Graph read(StreamTokenizer in, GraphReader.returnFormat format) throws IOException {
             in.commentChar('%');
             in.parseNumbers();
-            in.eolIsSignificant(true);
+            in.nextToken();
             int n = readInt(in);
+            in.nextToken();
             int e = readInt(in);
+            in.eolIsSignificant(true);
             int eVerify = 0;
 
             while (in.nextToken() != StreamTokenizer.TT_EOL)
@@ -105,6 +142,8 @@ public class GraphReader {
                 throw new FileFormatException("uneven edge count");
             if(eVerify / 2 != e)
                 throw new FileFormatException("actual edge count differs from header");
+            if(i < n)
+                throw new FileFormatException("number of lines is less than number of nodes in header");
 
             return g;
         }
@@ -139,6 +178,8 @@ public class GraphReader {
 
             InducedSubgraph sg = new InducedSubgraph(main, nodes);
 
+            // if Graph object returned by format is InducedSubgraph, attempting to add an edge will throw UnsupportedOperationException
+            // in this case, we just return sg
             try {
                 Graph ret = format.get(sg.getNodeCount());
                 for (int i = 0; i < sg.getNodeCount(); i++) {
@@ -185,8 +226,8 @@ public class GraphReader {
         }
     }
 
+    /** special case: can only be read from NodeList currently */
     public static class Subgraph implements returnFormat {
-
         @Override
         public Graph get(int n) {
             throw new UnsupportedOperationException("attempt to read data into induced subgraph");

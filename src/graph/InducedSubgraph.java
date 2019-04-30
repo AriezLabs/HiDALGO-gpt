@@ -25,7 +25,7 @@ public class InducedSubgraph extends Graph {
         // check if nodes in range
         int max = Arrays.stream(nodes).max(Integer::compareTo).orElse(-1);
         if(max >= g.getNodeCount())
-            // problem: partially initialized object...
+            // problem: creation of partially initialized object if we get to this point
             throw new IllegalArgumentException(String.format("cannot create induced subgraph: graph %s does not have node with id %d", g.name, max));
 
         this.g = g;
@@ -78,6 +78,14 @@ public class InducedSubgraph extends Graph {
                 mat[i][j] = 1;
         }
         return mat;
+    }
+
+    /**
+     * hacky. might not be fast enough for large subgraphs
+     */
+    @Override
+    public int getEdgeCount() {
+        return Arrays.stream(toMatrix()).mapToInt(n -> (int) Arrays.stream(n).sum()).sum();
     }
 
     /**
