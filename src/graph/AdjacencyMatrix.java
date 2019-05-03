@@ -28,7 +28,7 @@ public class AdjacencyMatrix extends Graph {
 
     @Override
     public ArrayList<Integer> getNeighbors(int node) {
-        ArrayList<Integer> l = new ArrayList<>(e/n);
+        ArrayList<Integer> l = new ArrayList<>(2*e/n);
         for(int i = 0; i < n; i++)
             if (mat[node][i])
                 l.add(i);

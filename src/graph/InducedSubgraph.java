@@ -44,9 +44,11 @@ public class InducedSubgraph extends Graph {
      */
     @Override
     public ArrayList<Integer> getNeighbors(int node) {
+        if(node > n)
+            throw new IllegalArgumentException("node id out of range for this subgraph");
         ArrayList<Integer> neighbors = new ArrayList<>();
         int neighbor;
-        for (int i : g.getNeighbors(node)) {
+        for (int i : g.getNeighbors(mapToOriginalIDs.get(node))) {
             neighbor = mapToNewIDs.getOrDefault(i, -1);
             if (neighbor != -1)
                 neighbors.add(neighbor);
@@ -93,5 +95,12 @@ public class InducedSubgraph extends Graph {
      */
     public int getOriginalNodeID(int node) {
         return mapToOriginalIDs.getOrDefault(node, -1);
+    }
+
+    /**
+     * @return ID of node in this graph, -1 if node is not in this graph
+     */
+    public int getNewNodeID(int original) {
+        return mapToNewIDs.getOrDefault(original, -1);
     }
 }

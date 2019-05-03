@@ -61,13 +61,10 @@ public class GraphWriter {
     public static class Metis implements OutputFormat {
         @Override
         public void write(Graph g, Writer w) throws IOException {
-            // peculiarity: undirected edges only count as one, Graph interface will count one per direction
-            int e = g.getEdgeCount();
-            if(e % 2 != 0)
-                System.err.println("warning: uneven edge count in metis graph " + g.getName());
+            int e = g.getUndirectedEdgeCount();
 
             // header
-            StringBuilder line = new StringBuilder().append(g.getNodeCount()).append(" ").append(e / 2);
+            StringBuilder line = new StringBuilder().append(g.getNodeCount()).append(" ").append(e);
             w.write(line.toString());
             w.write("\n");
 
@@ -76,7 +73,9 @@ public class GraphWriter {
                 line = new StringBuilder();
                 for(int neighbor : g.getNeighbors(i))
                     line.append(neighbor).append(" ");
-                w.write(line.deleteCharAt(line.length() - 1).toString());
+                if(line.length() > 0)
+                    line.deleteCharAt(line.length() - 1);
+                w.write(line.toString());
                 w.write("\n");
             }
         }

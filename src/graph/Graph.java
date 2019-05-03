@@ -1,8 +1,13 @@
 package graph;
 
+import io.GraphWriter;
 import org.ejml.data.DMatrixRMaj;
 import org.ejml.dense.row.factory.DecompositionFactory_DDRM;
 import org.ejml.interfaces.decomposition.EigenDecomposition_F64;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
 
 /**
  * abstract base class, doesn't support adding nodes, adding edges is only supported for reading from files etc
@@ -76,6 +81,29 @@ public abstract class Graph {
     }
 
     /**
+     * implemented via BFS
+     * @return true iff graph is fully connected or empty
+     */
+    public boolean isConnected() {
+        if(n == 0)
+            return true;
+
+        LinkedList<Integer> queue = new LinkedList<>();
+        boolean[] visited = new boolean[n];
+        queue.push(0);
+        while (!queue.isEmpty()) {
+            int node = queue.poll();
+            visited[node] = true;
+            for(Integer neighbor : getNeighbors(node))
+                if(!visited[neighbor])
+                    queue.push(neighbor);
+        }
+
+        for (boolean wasVisited : visited) if (!wasVisited) return false;
+        return true;
+    }
+
+    /**
      * @return false if edge already present, else true
      */
     public abstract boolean addEdge(int nodeFrom, int nodeTo);
@@ -90,8 +118,46 @@ public abstract class Graph {
 
     public int getNodeCount() { return n; }
     public int getEdgeCount() { return e; }
-    public int getUndirectedEdgeCount() { assert e % 2 == 0 : "uneven edge count"; return e / 2; }
+    public int getUndirectedEdgeCount() {
+        int e = getEdgeCount();
+        assert e % 2 == 0 : "uneven edge count";
+        return e / 2;
+    }
 
     public void setName(String name) { this.name = name; }
     public String getName() { return name; }
+    public String toString() {
+        GraphWriter gw = new GraphWriter();
+        gw.setFormat(new GraphWriter.Metis());
+        try {
+            return gw.toString(this);
+        } catch (IOException e) {
+            throw new RuntimeException("never gonna happen");
+        }
+    }
+
+    /**
+     * returns number of nodes with degree larger than n*cutoff
+     */
+    public int stronglyConnectedNodesCount(double cutoff) {
+        int ctr = 0;
+        for (int i = 0; i < n; i++) {
+            if(getDegree(i) > n*cutoff)
+                ctr++;
+        }
+        return ctr;
+    }
+
+    /**
+     * @return InducedSubgraph of this with nodes with degree larger than n*cutoff removed
+     */
+    public InducedSubgraph removeStronglyConnectedNodes(double cutoff) {
+        ArrayList<Integer> filteredNodes = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            if (getDegree(i) <= n * cutoff) {
+                filteredNodes.add(i);
+            }
+        }
+        return new InducedSubgraph(this, filteredNodes);
+    }
 }

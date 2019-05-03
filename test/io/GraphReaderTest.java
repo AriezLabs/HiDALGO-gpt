@@ -22,7 +22,7 @@ class GraphReaderTest {
     @ParameterizedTest
     @ValueSource(strings = {"tiny.metis", "medium.metis"})
     public void testTiny(String s) throws Exception {
-        String testgraph = "resources/" + s;
+        String testgraph = "testResources/" + s;
 
         GraphReader gr = new GraphReader();
         gr.setReturnFormat(new GraphReader.List());

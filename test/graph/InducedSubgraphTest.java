@@ -1,17 +1,51 @@
 package graph;
 
+import io.GraphReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class InducedSubgraphTest {
+    InducedSubgraph g;
+    Graph main;
+
     @BeforeEach
-    void reset(){
-
+    void reset() throws IOException {
+        GraphReader gr = new GraphReader();
+        gr.setInputFormat(new GraphReader.Metis());
+        gr.setReturnFormat(new GraphReader.Matrix());
+        main = gr.fromFile("testResources/medium.metis");
+        gr.setInputFormat(new GraphReader.NodeList(main));
+        gr.setReturnFormat(new GraphReader.Subgraph());
+        g = (InducedSubgraph) gr.fromFile("testResources/medium.nl");
     }
-    @Test
-    void testCreation() {
 
+    @Test
+    void getNeighbors() {
+        ArrayList<Integer> neighbors = g.getNeighbors(g.getNewNodeID(13));
+        assertEquals(3, neighbors.size());
+        assertTrue(neighbors.contains(g.getNewNodeID(0)));
+        assertTrue(neighbors.contains(g.getNewNodeID(3)));
+        assertTrue(neighbors.contains(g.getNewNodeID(10)));
+    }
+
+    @Test
+    void hasEdge() {
+    }
+
+    @Test
+    void toMatrix() {
+    }
+
+    @Test
+    void getEdgeCount() {
+    }
+
+    @Test
+    void getOriginalNodeID() {
     }
 }

@@ -58,9 +58,22 @@ class GraphTest {
         GraphReader gr = new GraphReader();
         gr.setInputFormat(new GraphReader.Metis());
         gr.setReturnFormat(new GraphReader.Matrix());
-        Graph g = gr.fromFile("resources/medium.metis");
+        Graph g = gr.fromFile("testResources/medium.metis");
         assertEquals(0.5781, g.getEigenvalue(), 0.0001);
-        g = gr.fromFile("resources/medium2.metis");
+        g = gr.fromFile("testResources/medium2.metis");
         assertEquals(0.4817, g.getEigenvalue(), 0.0001);
+    }
+
+    @Test
+    void testConnected() throws IOException {
+        GraphReader gr = new GraphReader();
+        gr.setInputFormat(new GraphReader.Metis());
+        gr.setReturnFormat(new GraphReader.Matrix());
+        Graph g = gr.fromFile("testResources/medium.metis");
+        assertTrue(g.isConnected());
+        g = gr.fromFile("testResources/medium2.metis");
+        assertTrue(g.isConnected());
+        g = gr.fromFile("testResources/disconnected.metis");
+        assertFalse(g.isConnected());
     }
 }
