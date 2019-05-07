@@ -8,6 +8,7 @@ import org.ejml.interfaces.decomposition.EigenDecomposition_F64;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.stream.IntStream;
 
 /**
  * abstract base class, doesn't support adding nodes, adding edges is only supported for reading from files etc
@@ -38,6 +39,38 @@ public abstract class Graph {
         for (int ignored : getNeighbors(node))
             deg++;
         return deg;
+    }
+
+    /**
+     * breadth first traversal of the neighbors of a node
+     * @param start node to start out with
+     * @return list of nodes in order of visit
+     */
+    private ArrayList<Integer> BFTraverse(int start) {
+        if (!hasNode(start))
+            throw new IllegalArgumentException(String.format("cannot traverse %d-node graph starting from node %d", n, start));
+
+        final short WHITE = 0;
+        final short GRAY  = 1;
+        final short BLACK = 2;
+
+        ArrayList<Integer> nodes = new ArrayList<>();
+        LinkedList<Integer> queue = new LinkedList<>();
+        short[] visited = new short[n];
+        queue.push(start);
+
+        while (!queue.isEmpty()) {
+            int node = queue.poll();
+            visited[node] = BLACK;
+            nodes.add(node);
+            for(Integer neighbor : getNeighbors(node))
+                if(visited[neighbor] == WHITE) {
+                    queue.push(neighbor);
+                    visited[neighbor] = GRAY;
+                }
+        }
+
+        return nodes;
     }
 
     /**
@@ -72,6 +105,7 @@ public abstract class Graph {
                 index = i;
             }
 
+        // find second smallest
         double secondSmallest = Double.MAX_VALUE;
         for (int i = 0; i < evd.getNumberOfEigenvalues(); i++)
             if(evd.getEigenvalue(i).getReal() < secondSmallest && i != index)
@@ -81,26 +115,36 @@ public abstract class Graph {
     }
 
     /**
-     * implemented via BFS
      * @return true iff graph is fully connected or empty
      */
     public boolean isConnected() {
-        if(n == 0)
-            return true;
+        return n == 0 || BFTraverse(0).size() == n;
+    }
 
-        LinkedList<Integer> queue = new LinkedList<>();
-        boolean[] visited = new boolean[n];
-        queue.push(0);
-        while (!queue.isEmpty()) {
-            int node = queue.poll();
-            visited[node] = true;
-            for(Integer neighbor : getNeighbors(node))
-                if(!visited[neighbor])
-                    queue.push(neighbor);
+    /**
+     * @return sizes of all connected components, empty arraylist if graph is empty
+     */
+    public ArrayList<Integer> getCcSizes() {
+        ArrayList<Integer> sizes = new ArrayList<>();
+        ArrayList<Integer> traversed = new ArrayList<>();
+
+        int start = 0;
+        while (traversed.size() < n && start != -1) {
+            ArrayList<Integer> component = BFTraverse(start);
+            traversed.addAll(component);
+            sizes.add(component.size());
+            start = IntStream.range(0, n).filter(n -> !traversed.contains(n)).findFirst().orElse(-1);
         }
 
-        for (boolean wasVisited : visited) if (!wasVisited) return false;
-        return true;
+        return sizes;
+    }
+
+    public int getLargestCcSize() {
+        return getCcSizes().stream().max(Integer::compareTo).orElse(0);
+    }
+
+    public int getNumberOfCcs() {
+        return getCcSizes().size();
     }
 
     /**
