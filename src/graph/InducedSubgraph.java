@@ -44,7 +44,7 @@ public class InducedSubgraph extends Graph {
      */
     @Override
     public ArrayList<Integer> getNeighbors(int node) {
-        if(node > n)
+        if(node > n || node < 0)
             throw new IllegalArgumentException("node id out of range for this subgraph");
         ArrayList<Integer> neighbors = new ArrayList<>();
         int neighbor;
