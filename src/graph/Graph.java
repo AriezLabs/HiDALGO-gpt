@@ -204,4 +204,63 @@ public abstract class Graph {
         }
         return new InducedSubgraph(this, filteredNodes);
     }
+
+    /**
+     * InducedSubgraph overrides to return node ids in original graph
+     * @return list of all node ids of this graph
+     */
+    public ArrayList<Integer> toNodeList() {
+        ArrayList<Integer> nodes = new ArrayList<>();
+        for (int i = 0; i < n; i++)
+            nodes.add(i);
+        return nodes;
+    }
+
+    /**
+     * @param other other Graph to check against
+     * @return percentage of nodes contained both in this and the other graph
+     */
+    public ArrayList<Integer> getOverlappingNodes(Graph other) {
+        ArrayList<Integer> a = toNodeList();
+        ArrayList<Integer> b = other.toNodeList();
+        ArrayList<Integer> overlapping = new ArrayList<>();
+
+        // naive, might be too slow
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < other.n; j++)
+                if (b.get(j).equals(a.get(i))) {
+                    overlapping.add(b.get(j));
+                    break;
+                }
+
+        return overlapping;
+    }
+
+    /**
+     * @return arraylist of nodes of this graph whose id is not also contained in the nodelist of other,
+     *         in case of InducedSubgraph node ids are given in terms of node ids in original graph
+     */
+    public ArrayList<Integer> getNonoverlappingNodes(Graph other) {
+        ArrayList<Integer> originalNodesOfThis = toNodeList();
+        ArrayList<Integer> originalNodesOfOther = other.toNodeList();
+        ArrayList<Integer> nonoverlappingNodes= new ArrayList<>();
+
+        outer: for (int i : originalNodesOfThis) {
+            for (int j : originalNodesOfOther)
+                if (i == j)
+                    continue outer;
+            // if node i is not present in other graph, it's nonoverlapping
+            nonoverlappingNodes.add(i);
+        }
+
+        return nonoverlappingNodes;
+    }
+
+    /**
+     * @return percentage of nodes both in this graph and the other graph (by id)
+     */
+    public double getNodeOverlapPercent(Graph other) {
+        return (double) getOverlappingNodes(other).size() / n;
+    }
+
 }

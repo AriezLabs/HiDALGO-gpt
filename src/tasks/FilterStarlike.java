@@ -42,17 +42,18 @@ public class FilterStarlike {
 
         String line;
         int i = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader(new File("resources/communities.txt")))) {
-            while ((line = br.readLine()) != null && i++ < 30000) {
-                graphs.add((InducedSubgraph) gw.fromString(line));
-            }
+        try (BufferedReader br = new BufferedReader(new FileReader(new File("resources/communitiesWithStars.txt")))) {
+            starttime = System.currentTimeMillis();
+            filterNodes(0.6, 0.2, 0.6, 0.2, br, g);
         }
 
+
+        /*
         ArrayList<Thread> threads = new ArrayList<>();
 
-        for (double degreeCutoff = 0.6; degreeCutoff < 0.8; degreeCutoff += 0.1)
-            for (double ccSizeCutoff = 0.5; ccSizeCutoff < 1; ccSizeCutoff += 0.1) {
-                double finalDegreeCutoff = 0.7;
+        for (double degreeCutoff = 0.6; degreeCutoff < 0.7; degreeCutoff += 0.1)
+            for (double ccSizeCutoff = 0.6; ccSizeCutoff < 0.7; ccSizeCutoff += 0.1) {
+                double finalDegreeCutoff = degreeCutoff;
                 double finalNumNodesCutoff = 0.2;
                 double finalCcSizeCutoff = ccSizeCutoff;
                 double finalEdgeCountCutoff = 0.2;
@@ -65,7 +66,6 @@ public class FilterStarlike {
                 }));
             }
 
-        starttime = System.currentTimeMillis();
         for (Thread t : threads)
             t.start();
 
@@ -76,24 +76,34 @@ public class FilterStarlike {
                 e.printStackTrace();
             }
         }
+         */
     }
 
     /**
-     * reads communities from communities.txt, writes eigenvalues of communities that still are connected after
+     * reads communities from communitiesWithStars.txt, writes eigenvalues of communities that still are connected after
      * removing nodes with degree > n*degreeCutoff to removedStats0.x.txt; ignores the rest
      * @param degreeCutoff throw out nodes with degree larger than n*degreeCutoff
      */
-    public static void filterNodes(double degreeCutoff, double numNodesCutoff, double ccSizeCutoff, double edgeCountCutoff, Iterable<InducedSubgraph> graphSupply) throws IOException {
+    public static void filterNodes(double degreeCutoff, double numNodesCutoff, double ccSizeCutoff, double edgeCountCutoff, BufferedReader br, Graph main) throws IOException {
         String id = String.format("deg%.2f-node%.2f-cc-%.2f-edge-%.3f", degreeCutoff, numNodesCutoff, ccSizeCutoff, edgeCountCutoff);
 
         try(
-            BufferedWriter bw = new BufferedWriter(new FileWriter(new File(id+"-relativeToOld-halfSizedCCs.txt")));
-            BufferedWriter rmbw = new BufferedWriter(new FileWriter(new File(id+"-relativeToOld-removed.txt")));
-            BufferedWriter cpbw = new BufferedWriter(new FileWriter(new File(id+"-relativeToOld-kept.txt")));
-            BufferedWriter evbw = new BufferedWriter(new FileWriter(new File(id+"-relativeToOld-evs.txt")));
+            BufferedWriter cw = new BufferedWriter(new FileWriter(new File(id+"-communitiesWithoutStars.txt")));
+            BufferedWriter bw = new BufferedWriter(new FileWriter(new File(id+"-halfSizedCCs.txt")));
+            BufferedWriter rmbw = new BufferedWriter(new FileWriter(new File(id+"-removed.txt")));
+            BufferedWriter cpbw = new BufferedWriter(new FileWriter(new File(id+"-kept.txt")));
+            BufferedWriter evbw = new BufferedWriter(new FileWriter(new File(id+"-evs.txt")));
             BufferedWriter tsbw = new BufferedWriter(new FileWriter(new File("testset.txt")))) {
 
-            for (InducedSubgraph community : graphSupply) {
+            GraphReader gr = new GraphReader();
+            gr.setInputFormat(new GraphReader.NodeList(main));
+            gr.setReturnFormat(new GraphReader.Subgraph());
+
+            String line;
+            while ((line = br.readLine()) != null ) {
+
+                InducedSubgraph community = (InducedSubgraph) gr.fromString(line);
+
                 nchecked++;
 
                 Graph removed = community.removeStronglyConnectedNodes(degreeCutoff);
@@ -106,19 +116,16 @@ public class FilterStarlike {
                     // 2. if graph has few strongly connected nodes
                     if (community.stronglyConnectedNodesCount(degreeCutoff) < community.getNodeCount() * numNodesCutoff)
                         // 3. if largest cc is < original size * constant
-                        if (removed.getLargestCcSize() < removed.getNodeCount() * ccSizeCutoff)
+                        if (removed.getLargestCcSize() < community.getNodeCount() * ccSizeCutoff)
                             // 4. if number of remaining edges is low
                             if (removed.getEdgeCount() < community.getEdgeCount() * edgeCountCutoff) {
                                 nremoved++;
-                                rmbw.write(community.toString() + "\n");
                                 continue;
                             }
 
-                cpbw.write(community.toString() + "\n");
-                evbw.write(community.getEigenvalue() + "\n");
-
-                if (Math.abs(1d * removed.getLargestCcSize() / community.getNodeCount() - 0.5) < 0.1)
-                    bw.write(community + "\n");
+                for(int node : community.toNodeList())
+                    cw.write(node + " ");
+                cw.write("\n");
             }
         }
     }

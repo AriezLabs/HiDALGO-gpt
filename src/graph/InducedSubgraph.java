@@ -3,6 +3,7 @@ package graph;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Decorator: Lookups are passed on to parent graph, lightweight to create
@@ -11,6 +12,7 @@ public class InducedSubgraph extends Graph {
     private HashMap<Integer, Integer> mapToOriginalIDs;
     private HashMap<Integer, Integer> mapToNewIDs;
     private Graph g;
+    private ReentrantLock lock = new ReentrantLock();
 
     /**
      * create new subgraph from graph and list of nodes
@@ -84,6 +86,7 @@ public class InducedSubgraph extends Graph {
 
     /**
      * hacky. might not be fast enough for large subgraphs
+     * @return count of edges (undirected edges counted twice)
      */
     @Override
     public int getEdgeCount() {
@@ -102,5 +105,69 @@ public class InducedSubgraph extends Graph {
      */
     public int getNewNodeID(int original) {
         return mapToNewIDs.getOrDefault(original, -1);
+    }
+
+    /**
+     * @return list of all original node ids of this graph
+     */
+    public ArrayList<Integer> toNodeList() {
+        ArrayList<Integer> nodes = new ArrayList<>();
+        for (int i = 0; i < n; i++)
+            nodes.add(getOriginalNodeID(i));
+        return nodes;
+    }
+
+    /**
+     * @return number of edges incident to non-overlapping parts of this subgraph and the other subgraph
+     *         divided by number of edges in non-overlapping part of the larger of this and other
+     */
+    public double getEdgeOverlapPercent(InducedSubgraph other) {
+        if (other.g != this.g)
+            return 0;
+
+        if (other.n < this.n)
+            return other.getEdgeOverlapPercent(this);
+
+        // assert: this.n <= other.n
+
+        ArrayList<Integer> nonoverlappingNodesOfThis = getNonoverlappingNodes(other);
+        ArrayList<Integer> nonoverlappingNodesOfOther = other.getNonoverlappingNodes(this);
+
+        assert nonoverlappingNodesOfThis.size() > 0 : "found embedded community";
+
+        int incidentEdges = 0;
+        for (int nodeA : nonoverlappingNodesOfThis)
+            for (int nodeB : nonoverlappingNodesOfOther)
+                if (g.hasEdge(nodeA, nodeB))
+                    incidentEdges++;
+
+        int nonoverlappingEdges = new InducedSubgraph(g, nonoverlappingNodesOfThis).getUndirectedEdgeCount();
+
+        return (double) incidentEdges / nonoverlappingEdges;
+    }
+
+    public boolean hasOriginalNode(int originalNodeId) {
+        return mapToOriginalIDs.containsValue(originalNodeId);
+    }
+
+    public InducedSubgraph merge(InducedSubgraph other) {
+        assert other.g == this.g : "cannot merge induced subgraphs stemming from different main graphs";
+
+        ArrayList<Integer> nodesOfThis = toNodeList();
+        ArrayList<Integer> nodesOfOther = other.toNodeList();
+        ArrayList<Integer> merged = new ArrayList<>();
+
+        for (int node : nodesOfThis)
+            merged.add(node);
+
+        for (int node : nodesOfOther)
+            if (!merged.contains(node))
+                merged.add(node);
+
+        return new InducedSubgraph(g, merged);
+    }
+
+    public ReentrantLock getLock() {
+        return lock;
     }
 }
