@@ -15,8 +15,8 @@ public class MergeOverlappingCommunities {
     private static double evImprovement = 0;
     private static int numPairs = 0;
 
-    private static final double edgeOverlapThreshold = 5;
-    private static final double nodeOverlapThreshold = 0.5;
+    private static double edgeOverlapThreshold;
+    private static double nodeOverlapThreshold;
     private static final double evDeltaThreshold = 0.01;
 
     private static int numThreads;
@@ -26,13 +26,15 @@ public class MergeOverlappingCommunities {
     private static ArrayList<InducedSubgraph> subgs;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        if (args.length != 2) {
-            System.out.println("usage: MergeOverlappingCommunities numThreads walltimeSeconds");
+        if (args.length != 4) {
+            System.out.println("usage: MergeOverlappingCommunities numThreads walltimeSeconds edgeOverlapThreshold nodeOverlapThreshold");
             System.out.println("writing new eigenvalues will take a while.. needs +1 hour or so of extra walltime");
             System.exit(1);
         } else {
             numThreads = Integer.parseInt(args[0]);
             walltime = Integer.parseInt(args[1]);
+            edgeOverlapThreshold = Double.parseDouble(args[2]);
+            nodeOverlapThreshold = Double.parseDouble(args[3]);
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -80,8 +82,10 @@ public class MergeOverlappingCommunities {
         subgs = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(new File("resources/communitiesWithEvs.txt")))) {
             String line;
-            while ((line = br.readLine()) != null)
-                subgs.add((InducedSubgraph) gr.fromString(line));
+            while ((line = br.readLine()) != null) {
+                InducedSubgraph g = (InducedSubgraph) gr.fromString(line);
+                subgs.add(g);
+            }
         }
 
         index = new InverseIndex(pokec, subgs);
@@ -120,9 +124,7 @@ public class MergeOverlappingCommunities {
         System.out.println("exceeded walltime, stopping...");
         walltimeExceeded = true;
 
-        for (int i = 0; i < threads.length; i++) {
+        for (int i = 0; i < threads.length; i++)
             threads[i].join();
-            System.out.println("stopped thread " + i);
-        }
     }
 }

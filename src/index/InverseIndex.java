@@ -33,27 +33,29 @@ public class InverseIndex {
      * @return new OverlappingPair with two random overlapping subgraphs
      */
     public OverlappingPair getRandomPair() {
-        while (true) {
-            ArrayList<InducedSubgraph> overlappingSubgraphs = index[(int) Math.floor(Math.random() * index.length)];
+        synchronized (this) {
+            while (true) {
+                ArrayList<InducedSubgraph> overlappingSubgraphs = index[(int) Math.floor(Math.random() * index.length)];
 
-            int randIndex1 = (int) Math.floor(Math.random() * overlappingSubgraphs.size());
-            int randIndex2 = (int) Math.floor(Math.random() * overlappingSubgraphs.size());
+                int randIndex1 = (int) Math.floor(Math.random() * overlappingSubgraphs.size());
+                int randIndex2 = (int) Math.floor(Math.random() * overlappingSubgraphs.size());
 
-            if(randIndex1 == randIndex2)
-                continue;
+                if (randIndex1 == randIndex2)
+                    continue;
 
-            InducedSubgraph a = overlappingSubgraphs.get(randIndex1);
-            InducedSubgraph b = overlappingSubgraphs.get(randIndex2);
+                InducedSubgraph a = overlappingSubgraphs.get(randIndex1);
+                InducedSubgraph b = overlappingSubgraphs.get(randIndex2);
 
-            if(!a.getLock().tryLock()) {
-                continue;
+                if (!a.getLock().tryLock()) {
+                    continue;
+                }
+                if (!b.getLock().tryLock()) {
+                    a.getLock().unlock();
+                    continue;
+                }
+
+                return new OverlappingPair(a, b);
             }
-            if(!b.getLock().tryLock()) {
-                a.getLock().unlock();
-                continue;
-            }
-
-            return new OverlappingPair(a, b);
         }
     }
 
@@ -62,15 +64,17 @@ public class InverseIndex {
      * @param pair
      */
     public void update(OverlappingPair pair) {
-        for (int i = 0; i < pair.a.getNodeCount(); i++)
-            index[pair.a.getOriginalNodeID(i)].remove(pair.a);
-        for (int i = 0; i < pair.b.getNodeCount(); i++)
-            index[pair.b.getOriginalNodeID(i)].remove(pair.b);
-        for (int i = 0; i < pair.merged.getNodeCount(); i++)
-            index[pair.merged.getOriginalNodeID(i)].add(pair.merged);
+        synchronized (this) {
+            for (int i = 0; i < pair.a.getNodeCount(); i++)
+                index[pair.a.getOriginalNodeID(i)].remove(pair.a);
+            for (int i = 0; i < pair.b.getNodeCount(); i++)
+                index[pair.b.getOriginalNodeID(i)].remove(pair.b);
+            for (int i = 0; i < pair.merged.getNodeCount(); i++)
+                index[pair.merged.getOriginalNodeID(i)].add(pair.merged);
 
-        source.remove(pair.a);
-        source.remove(pair.b);
-        source.add(pair.merged);
+            source.remove(pair.a);
+            source.remove(pair.b);
+            source.add(pair.merged);
+        }
     }
 }
