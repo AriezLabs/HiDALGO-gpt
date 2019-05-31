@@ -28,7 +28,6 @@ public class MergeOverlappingCommunities {
     public static void main(String[] args) throws IOException, InterruptedException {
         if (args.length != 4) {
             System.out.println("usage: MergeOverlappingCommunities numThreads walltimeSeconds edgeOverlapThreshold nodeOverlapThreshold");
-            System.out.println("writing new eigenvalues will take a while.. needs +1 hour or so of extra walltime");
             System.exit(1);
         } else {
             numThreads = Integer.parseInt(args[0]);
@@ -49,7 +48,7 @@ public class MergeOverlappingCommunities {
             System.out.println("remaining items: " + subgs.size());
 
             System.out.println("writing new evs...");
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(new File("./newEigenvalues.txt")))) {
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(new File(String.format("./newEigenvalues-edge%f-node%f.txt", edgeOverlapThreshold, nodeOverlapThreshold))))) {
                 for(InducedSubgraph subg : subgs)
                     bw.write(subg.getEigenvalue() +"\n");
             } catch (IOException e) {
@@ -57,7 +56,7 @@ public class MergeOverlappingCommunities {
             }
 
             System.out.println("writing new nodelists...");
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(new File("./newCommunities.txt")))) {
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(new File(String.format("./newCommunities-edge%f-node%f.txt", edgeOverlapThreshold, nodeOverlapThreshold))))) {
                 for(InducedSubgraph subg : subgs) {
                     for (int i : subg.toNodeList())
                         bw.write(i +" ");
