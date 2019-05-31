@@ -17,6 +17,7 @@ import java.util.stream.IntStream;
 public abstract class Graph {
     int n;
     int e;
+    double ev = -1;
     String name;
 
     Graph(int n) {
@@ -77,6 +78,9 @@ public abstract class Graph {
      * @return second smallest eigenvalue of normalized laplacian of this graph
      */
     public double getEigenvalue() {
+        if (ev != -1)
+            return ev;
+
         double[][] matrix = toMatrix();
 
         // get laplacian
@@ -111,7 +115,13 @@ public abstract class Graph {
             if(evd.getEigenvalue(i).getReal() < secondSmallest && i != index)
                 secondSmallest = evd.getEigenvalue(i).getReal();
 
+        ev = secondSmallest;
         return secondSmallest;
+    }
+
+    public void setEigenvalue(double ev) {
+        assert this.ev == -1 : "ev already known, cannot set";
+        this.ev = ev;
     }
 
     /**

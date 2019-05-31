@@ -4,6 +4,7 @@ import io.GraphReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -47,5 +48,21 @@ class InducedSubgraphTest {
 
     @Test
     void getOriginalNodeID() {
+    }
+
+    @Test
+    void getEdgeOverlapPercent() throws IOException {
+        GraphReader gr = new GraphReader();
+        gr.setInputFormat(new GraphReader.Metis());
+        gr.setReturnFormat(new GraphReader.Matrix());
+        Graph main = gr.fromFile(new File("testResources/overlapBase.metis"));
+
+        gr.setInputFormat(new GraphReader.NodeList(main));
+        gr.setReturnFormat(new GraphReader.Subgraph());
+
+        InducedSubgraph sub1 = (InducedSubgraph) gr.fromFile(new File("testResources/overlap1.nl"));
+        InducedSubgraph sub2 = (InducedSubgraph) gr.fromFile(new File("testResources/overlap2.nl"));
+
+        System.out.println(sub1.getEdgeOverlapPercent(sub2));
     }
 }

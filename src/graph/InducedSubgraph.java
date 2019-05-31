@@ -77,20 +77,24 @@ public class InducedSubgraph extends Graph {
     @Override
     public double[][] toMatrix() {
         double[][] mat = new double[n][n];
-        for (int i = 0; i < n; i++) {
-            for (int j : getNeighbors(i))
-                mat[i][j] = 1;
-        }
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                if (hasEdge(i, j))
+                    mat[i][j] = 1;
         return mat;
     }
 
     /**
-     * hacky. might not be fast enough for large subgraphs
      * @return count of edges (undirected edges counted twice)
      */
     @Override
     public int getEdgeCount() {
-        return Arrays.stream(toMatrix()).mapToInt(n -> (int) Arrays.stream(n).sum()).sum();
+        int count = 0;
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                if (hasEdge(i, j))
+                    count++;
+        return count;
     }
 
     /**
@@ -133,7 +137,11 @@ public class InducedSubgraph extends Graph {
         ArrayList<Integer> nonoverlappingNodesOfThis = getNonoverlappingNodes(other);
         ArrayList<Integer> nonoverlappingNodesOfOther = other.getNonoverlappingNodes(this);
 
-        assert nonoverlappingNodesOfThis.size() > 0 : "found embedded community";
+        if (nonoverlappingNodesOfThis.size() <= 0) { // overlapping communities...
+            return Double.MAX_VALUE;
+        }
+
+        //assert nonoverlappingNodesOfThis.size() > 0 : "found embedded community";
 
         int incidentEdges = 0;
         for (int nodeA : nonoverlappingNodesOfThis)
@@ -157,8 +165,7 @@ public class InducedSubgraph extends Graph {
         ArrayList<Integer> nodesOfOther = other.toNodeList();
         ArrayList<Integer> merged = new ArrayList<>();
 
-        for (int node : nodesOfThis)
-            merged.add(node);
+        merged.addAll(nodesOfThis);
 
         for (int node : nodesOfOther)
             if (!merged.contains(node))

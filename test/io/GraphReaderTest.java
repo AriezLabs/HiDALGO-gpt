@@ -1,7 +1,6 @@
 package io;
 
 import graph.Graph;
-import graph.InducedSubgraph;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -101,5 +100,37 @@ class GraphReaderTest {
         assertTrue(subMat.hasEdge(1, 2));
         assertEquals(4, subMat.getEdgeCount());
         assertEquals(3, subMat.getNodeCount());
+    }
+
+    @Test
+    void testNodeListWithEv() throws IOException {
+        String testgraph = "testResources/tiny.metis";
+        String nodelist = "testResources/tiny.nlev";
+
+        GraphReader gr = new GraphReader();
+        gr.setReturnFormat(new GraphReader.List());
+        gr.setInputFormat(new GraphReader.Metis());
+        Graph g = gr.fromFile(testgraph);
+
+        gr.setReturnFormat(new GraphReader.Subgraph());
+        gr.setInputFormat(new GraphReader.NodeListWithEvs(g));
+
+        Graph sub = gr.fromFile(nodelist);
+
+        gr.setReturnFormat(new GraphReader.List());
+        Graph subMat = gr.fromFile(nodelist);
+
+        for (int i = 0; i < sub.getNodeCount(); i++) {
+            for (int j = 0; j < sub.getNodeCount(); j++) {
+                assertEquals(sub.hasEdge(i, j), subMat.hasEdge(i, j));
+            }
+        }
+
+        assertTrue(subMat.hasEdge(0, 1));
+        assertTrue(subMat.hasEdge(1, 2));
+        assertEquals(4, subMat.getEdgeCount());
+        assertEquals(3, subMat.getNodeCount());
+        assertEquals(1337, sub.getEigenvalue());
+        assertEquals(1337, subMat.getEigenvalue());
     }
 }

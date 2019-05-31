@@ -179,7 +179,7 @@ public class GraphReader {
             InducedSubgraph sg = new InducedSubgraph(main, nodes);
 
             // if Graph object returned by format is InducedSubgraph, attempting to add an edge will throw UnsupportedOperationException
-            // in this case, we just return sg
+            // in this case, we just return sg instead of "translating" to some other Graph subclass
             try {
                 Graph ret = format.get(sg.getNodeCount());
                 for (int i = 0; i < sg.getNodeCount(); i++) {
@@ -199,6 +199,31 @@ public class GraphReader {
         public String getEBNF() {
             return  "comment = '%' string '\\n' .\n" +
                     "nodeList = { integer } .";
+        }
+    }
+
+    public static class NodeListWithEvs implements inputFormat {
+        NodeList nl;
+
+        public NodeListWithEvs(Graph main) {
+            this.nl = new NodeList(main);
+        }
+
+        @Override
+        public Graph read(StreamTokenizer in, GraphReader.returnFormat format) throws IOException, FileFormatException {
+            in.commentChar('%');
+            in.parseNumbers();
+            assert in.nextToken() == StreamTokenizer.TT_NUMBER : "first token in nodelist with eigenvalue is not a number";
+            double ev = in.nval;
+            Graph g = nl.read(in, format);
+            g.setEigenvalue(ev);
+            return g;
+        }
+
+        @Override
+        public String getEBNF() {
+            return  "comment = '%' string '\\n' .\n" +
+                    "nodeListWithEv = eigenvalue { integer } .";
         }
     }
 

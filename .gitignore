@@ -2,4 +2,5 @@
 *.iml
 out/
 lib/
-resources/communities.txt
+resources/*
+testResources/*

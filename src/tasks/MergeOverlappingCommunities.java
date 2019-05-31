@@ -3,38 +3,69 @@ package tasks;
 import graph.Graph;
 import graph.InducedSubgraph;
 import index.InverseIndex;
+import index.OverlappingPair;
 import io.GraphReader;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 
 public class MergeOverlappingCommunities {
-    private static long stime = System.currentTimeMillis();
+    private static long stime;
     private static int numMerged = 0;
+    private static double evImprovement = 0;
     private static int numPairs = 0;
 
-    private static final double edgeOverlapThreshold = 2;
+    private static final double edgeOverlapThreshold = 5;
     private static final double nodeOverlapThreshold = 0.5;
     private static final double evDeltaThreshold = 0.01;
 
     private static int numThreads;
+    private static int walltime;
+    private static boolean walltimeExceeded = false;
+    private static InverseIndex index;
+    private static ArrayList<InducedSubgraph> subgs;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-
-        if (args.length != 1) {
-            System.out.println("usage: MergeOverlappingCommunities numThreads");
-        } else
+        if (args.length != 2) {
+            System.out.println("usage: MergeOverlappingCommunities numThreads walltimeSeconds");
+            System.out.println("writing new eigenvalues will take a while.. needs +1 hour or so of extra walltime");
+            System.exit(1);
+        } else {
             numThreads = Integer.parseInt(args[0]);
+            walltime = Integer.parseInt(args[1]);
+        }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             float runtime = (System.currentTimeMillis() - stime) / 1000f;
-            System.out.println("runtime: " + runtime);
-            System.out.println("pairs: " + numPairs);
-            System.out.println("merges: " + numMerged);
-            System.out.println("#pairs: " + (numPairs / (((System.currentTimeMillis() - stime)) / 1000d)) + "/s, #merged: " + (numMerged / (((System.currentTimeMillis() - stime)) / 1000d)) + "/s");
+            System.out.println("exiting...");
+            System.out.println("time: " + runtime);
+            System.out.println("#pairs: " + numPairs);
+            System.out.println("pairs/s: " + (numPairs / (((System.currentTimeMillis() - stime)) / 1000d)));
+            System.out.println("#merges: " + numMerged);
+            System.out.println("merges/s: " + (numMerged / (((System.currentTimeMillis() - stime)) / 1000d)));
+            System.out.println("avg ev improvement: " + (evImprovement / (2 * numMerged)));
+            System.out.println("remaining items: " + subgs.size());
+
+            System.out.println("writing new evs...");
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(new File("./newEigenvalues.txt")))) {
+                for(InducedSubgraph subg : subgs)
+                    bw.write(subg.getEigenvalue() +"\n");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println("writing new nodelists...");
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(new File("./newCommunities.txt")))) {
+                for(InducedSubgraph subg : subgs) {
+                    for (int i : subg.toNodeList())
+                        bw.write(i +" ");
+                    bw.write("\n");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println("done.");
         }));
 
         GraphReader gr = new GraphReader();
@@ -44,68 +75,54 @@ public class MergeOverlappingCommunities {
         Graph pokec = gr.fromFile("resources/pokec.metis");
 
         gr.setReturnFormat(new GraphReader.Subgraph());
-        gr.setInputFormat(new GraphReader.NodeList(pokec));
+        gr.setInputFormat(new GraphReader.NodeListWithEvs(pokec));
 
-        ArrayList<InducedSubgraph> subgs = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(new File("resources/communities.txt")))) {
+        subgs = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(new File("resources/communitiesWithEvs.txt")))) {
             String line;
             while ((line = br.readLine()) != null)
                 subgs.add((InducedSubgraph) gr.fromString(line));
         }
 
-        InverseIndex index = new InverseIndex(pokec, subgs);
+        index = new InverseIndex(pokec, subgs);
 
-        final long stime = System.currentTimeMillis();
-
+        System.out.printf("indexed %d items%nstarting...%n", subgs.size());
         Thread[] threads = new Thread[numThreads];
         for (int i = 0; i < threads.length; i++) {
             threads[i] = new Thread(() -> {
-                InducedSubgraph merged;
-                InducedSubgraph a;
-                InducedSubgraph b;
-                while (true) {
-                    // pick a random node
-                    int randIndex1 = (int) Math.floor(Math.random() * index.size());
-
-                    // pick two random communities having that node
-                    ArrayList<InducedSubgraph> overlappingSubgraphs = index.getGraphsHaving(randIndex1); //TODO READ LOCK THIS LIST... NEED PRODUCER/CONSUMER KIND OF THING
-                    int randIndex2 = (int) Math.floor(Math.random() * overlappingSubgraphs.size());
-                    int randIndex3 = (int) Math.floor(Math.random() * overlappingSubgraphs.size());
-
-                    if (randIndex2 == randIndex3)
-                        continue;
-
-                    a = overlappingSubgraphs.get(randIndex2);
-                    b = overlappingSubgraphs.get(randIndex3);
-                    if (!a.getLock().tryLock())
-                        continue;
-                    if (!b.getLock().tryLock()) {
-                        a.getLock().unlock();
-                        continue;
-                    }
-
+                while (!walltimeExceeded) {
+                    OverlappingPair pair = index.getRandomPair();
                     numPairs++;
 
-                    if (a.getNodeOverlapPercent(b) > nodeOverlapThreshold)
-                        if (a.getEdgeOverlapPercent(b) > edgeOverlapThreshold) {
-                            merged = a.merge(b);
-                            double ev = merged.getEigenvalue();
-                            if (ev > a.getEigenvalue() + evDeltaThreshold && ev > b.getEigenvalue() + evDeltaThreshold)
-                                numMerged++;
-                        }
+                    if (pair.nodesOverlapping(nodeOverlapThreshold)
+                     && pair.edgesOverlapping(edgeOverlapThreshold)
+                     && pair.getDelta() >= evDeltaThreshold) {
+                        index.update(pair);
+                        evImprovement += pair.getDelta();
+                        numMerged++;
 
-                    a.getLock().unlock();
-                    b.getLock().unlock();
+                    } else {
+                        pair.unlock();
+                    }
                 }
             });
         }
+
+        stime = System.currentTimeMillis();
 
         for (int i = 0; i < threads.length; i++) {
             threads[i].start();
         }
 
+        Thread.sleep(1000*walltime);
+        //while((System.currentTimeMillis() - stime) < walltime * 1000)
+        //    continue;
+        System.out.println("exceeded walltime, stopping...");
+        walltimeExceeded = true;
+
         for (int i = 0; i < threads.length; i++) {
             threads[i].join();
+            System.out.println("stopped thread " + i);
         }
     }
 }
