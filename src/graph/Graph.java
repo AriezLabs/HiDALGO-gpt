@@ -14,7 +14,7 @@ import java.util.stream.IntStream;
  * abstract base class, doesn't support adding nodes, adding edges is only supported for reading from files etc
  * pseudo-immutable
  */
-public abstract class Graph {
+public abstract class Graph implements Comparable<Graph> {
     int n;
     int e;
     double ev = -1;
@@ -273,4 +273,8 @@ public abstract class Graph {
         return (double) getOverlappingNodes(other).size() / n;
     }
 
+    @Override
+    public int compareTo(Graph other) {
+        return this.n - other.n;
+    }
 }

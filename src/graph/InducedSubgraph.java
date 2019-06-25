@@ -159,7 +159,7 @@ public class InducedSubgraph extends Graph {
     }
 
     public InducedSubgraph merge(InducedSubgraph other) {
-        assert other.g == this.g : "cannot merge induced subgraphs stemming from different main graphs";
+        assert other.g == this.g : "cannot merge induced subgraphs from different main graphs";
 
         ArrayList<Integer> nodesOfThis = toNodeList();
         ArrayList<Integer> nodesOfOther = other.toNodeList();
@@ -176,5 +176,17 @@ public class InducedSubgraph extends Graph {
 
     public ReentrantLock getLock() {
         return lock;
+    }
+
+    /**
+     * @return size of this induced subgraph... DEBUG
+     */
+    @Override
+    public String toString() {
+        return n + "";
+    }
+
+    public Graph getOriginalGraph() {
+        return g;
     }
 }

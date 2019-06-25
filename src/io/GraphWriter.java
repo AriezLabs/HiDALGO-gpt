@@ -1,11 +1,13 @@
 package io;
 
 import graph.Graph;
+import index.MergeCandidate;
 
 import java.io.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashSet;
 
 public class GraphWriter {
     OutputFormat format;
@@ -46,6 +48,67 @@ public class GraphWriter {
     public void checkFormatSet() {
         if (format == null)
             throw new IllegalStateException("cannot read graph: input format is unset");
+    }
+
+    // this method is an abomination
+    public String toGraphViz(MergeCandidate candidate) {
+        final String colorA = "cyan3";
+        final String colorB = "crimson";
+        final String colorC = "darkgoldenrod";
+        final String colorEdges = "darkolivegreen";
+        final String overlap = "prism";
+        final int penwidth = 3;
+
+        HashSet<Integer> a = new HashSet<>(candidate.a.toNodeList());
+        HashSet<Integer> b = new HashSet<>(candidate.b.toNodeList());
+        HashSet<Integer> c = new HashSet<>(candidate.b.toNodeList());
+        a.removeAll(b);
+        c.removeAll(candidate.a.toNodeList());
+        b.removeAll(c);
+        Graph og = candidate.a.getOriginalGraph();
+
+        StringBuilder sb = new StringBuilder(String.format("strict graph {\n\tedge [penwidth=%d]\n\tnode [style=filled]\n\toverlap=\"%s\"\n\toutputorder=\"edgesfirst\"\n", penwidth, overlap));
+
+        for (int node : b) {
+            sb.append(String.format("\t%d [color=%s]\n", node, colorB));
+            for (int neighbor : a)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorA));
+            for (int neighbor : b)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorB));
+            for (int neighbor : c)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorC));
+        }
+
+        for (int node : a) {
+            sb.append(String.format("\t%d [color=%s]\n", node, colorA));
+            for (int neighbor : a)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorA));
+            for (int neighbor : b)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorA));
+            for (int neighbor : c)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorEdges));
+        }
+
+        for (int node : c) {
+            sb.append(String.format("\t%d [color=%s]\n", node, colorC));
+            for (int neighbor : a)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorEdges));
+            for (int neighbor : b)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorC));
+            for (int neighbor : c)
+                if (og.hasEdge(node, neighbor))
+                    sb.append(String.format("\t%d -- %d [color=%s]\n", node, neighbor, colorC));
+        }
+
+        return sb.append("}").toString();
     }
 
     private interface OutputFormat {
