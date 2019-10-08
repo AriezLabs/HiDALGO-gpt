@@ -8,7 +8,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InducedSubgraphTest {
     InducedSubgraph g;
@@ -64,5 +65,29 @@ class InducedSubgraphTest {
         InducedSubgraph sub2 = (InducedSubgraph) gr.fromFile(new File("testResources/overlap2.nl"));
 
         System.out.println(sub1.getEdgeOverlapPercent(sub2));
+    }
+
+    @Test
+    void testMerge() throws IOException {
+        GraphReader gr = new GraphReader();
+        gr.setInputFormat(new GraphReader.Metis());
+        gr.setReturnFormat(new GraphReader.Matrix());
+        Graph main = gr.fromFile(new File("testResources/medium.metis"));
+
+        gr.setInputFormat(new GraphReader.NodeList(main));
+        gr.setReturnFormat(new GraphReader.Subgraph());
+        InducedSubgraph sg1 = (InducedSubgraph) gr.fromFile("testResources/medium.nl");
+        InducedSubgraph sg2 = (InducedSubgraph) gr.fromFile("testResources/medium.nl.2");
+
+        InducedSubgraph merged = sg1.merge(sg2);
+        int[] nodes = {0, 1, 2, 3, 10, 13, 16};
+        ArrayList<Integer> whyisthissocomplicated = new ArrayList<>();
+        for(int i : nodes) {
+            assertTrue(merged.toNodeList().contains(i));
+            whyisthissocomplicated.add(i);
+        }
+
+        InducedSubgraph test = new InducedSubgraph(main, whyisthissocomplicated);
+        assertEquals(test.getEigenvalue(), merged.getEigenvalue(), 0.0000001);
     }
 }
